@@ -1,4 +1,4 @@
-# Discord Community Bot
+# Discord Community Bot/FEITO COM IA
 
 Bot de comunidade em Python com tickets, boas-vindas configuráveis, moderação com confirmação e comandos úteis/divertidos.
 
