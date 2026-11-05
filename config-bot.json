@@ -1,0 +1,11 @@
+{
+  "restart": {
+    "enabled": true,
+    "interval_hours": 24,
+    "retry_seconds": 10
+  },
+  "logs": {
+    "discord_enabled": true,
+    "console_level": "INFO"
+  }
+}

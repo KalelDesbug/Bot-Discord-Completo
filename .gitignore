@@ -42,6 +42,6 @@ venv.bak/
 .idea/
 
 # Temp
-tempCodeRunnerFile.py
+.tempCodeRunnerFile.py
 .ruff_cache/
 .pytest_cache/

@@ -32,9 +32,9 @@ def get_logger(name: str) -> std_logging.Logger:
     return std_logging.getLogger(name)
 
 
-def configure_logging() -> None:
+def configure_logging(level: str = "INFO") -> None:
     std_logging.basicConfig(
-        level=std_logging.INFO,
+        level=getattr(std_logging, level.upper()),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
