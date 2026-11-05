@@ -1,12 +1,12 @@
 import asyncio
-import logging
 
 from dotenv import load_dotenv
 
 from src.bot_app.bot import CommunityBot
 from src.bot_app.config import PROJECT_ROOT, Settings
+from src.bot_app.logging import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 RESTART_INTERVAL_SECONDS = 24 * 60 * 60
 RESTART_RETRY_SECONDS = 10
 
@@ -40,10 +40,7 @@ async def run() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    configure_logging()
     asyncio.run(run())
 
 

@@ -1,6 +1,6 @@
 import discord
 
-from src.bot_app.features.logs.service import LogLevel, build_log_embed, friendly_error
+from src.bot_app.logging import LogLevel, build_log_embed, friendly_error
 
 
 def test_log_embed_uses_white_for_startup_and_truncates_long_messages() -> None:

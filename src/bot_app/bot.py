@@ -1,4 +1,4 @@
-import logging
+import logging as std_logging
 import subprocess
 import sys
 from pathlib import Path
@@ -31,14 +31,19 @@ from discord.ext import commands
 from src.bot_app.core.components import TextLayout
 from src.bot_app.core.database import Database
 from src.bot_app.core.settings import GuildSettingsRepository
-from src.bot_app.features.logs.service import LogLevel, build_log_embed, friendly_error
 from src.bot_app.features.tickets.repository import TicketRepository
 from src.bot_app.features.welcome.repository import WelcomeRepository
+from src.bot_app.logging import (
+    LogLevel,
+    get_logger,
+    friendly_error,
+    send_guild_log,
+)
 
 if TYPE_CHECKING:
     from src.bot_app.config import Settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CommunityBot(commands.Bot):
@@ -97,27 +102,14 @@ class CommunityBot(commands.Bot):
         title: str = "Registro do bot",
         level: LogLevel = LogLevel.INFO,
     ) -> None:
-        """Best-effort log delivery: log failures never interrupt bot features."""
-        try:
-            channel_id = await self.guild_settings.get_log_channel(guild_id)
-            if channel_id is None:
-                return
-            channel = self.get_channel(channel_id)
-            if channel is None:
-                channel = await self.fetch_channel(channel_id)
-            if not isinstance(channel, discord.TextChannel):
-                logger.warning("Canal de logs %s inválido no servidor %s.", channel_id, guild_id)
-                return
-            await channel.send(
-                embed=build_log_embed(title, text, level),
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
-        except discord.NotFound:
-            logger.warning("Canal de logs não encontrado no servidor %s.", guild_id)
-        except discord.Forbidden:
-            logger.warning("Sem permissão para enviar logs no servidor %s.", guild_id)
-        except Exception:
-            logger.exception("Falha interna ao enviar log para o servidor %s.", guild_id)
+        await send_guild_log(
+            self,
+            self.guild_settings,
+            guild_id,
+            text,
+            title=title,
+            level=level,
+        )
 
     async def on_app_command_error(
         self,
@@ -131,11 +123,12 @@ class CommunityBot(commands.Bot):
         elif isinstance(error, app_commands.CommandOnCooldown):
             message = "Este comando foi usado muitas vezes. Aguarde um pouco e tente novamente."
         else:
-            message = friendly_error(getattr(error, "original", error))
+            original_error = getattr(error, "original", error)
+            message = friendly_error(original_error)
             logger.error(
                 "Erro no comando %s: %s",
                 interaction.command.name if interaction.command else "desconhecido",
-                type(getattr(error, "original", error)).__name__,
+                type(original_error).__name__,
                 exc_info=(type(error), error, error.__traceback__),
             )
             if interaction.guild_id is not None:

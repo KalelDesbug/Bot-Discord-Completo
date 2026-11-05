@@ -1,13 +1,11 @@
-import logging
-
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from src.bot_app.core.components import respond
-from src.bot_app.features.logs.service import LogLevel, build_log_embed
+from src.bot_app.logging import LogLevel, build_log_embed, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Logs(commands.Cog):
