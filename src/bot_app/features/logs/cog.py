@@ -1,8 +1,13 @@
+import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.bot_app.core.components import TextLayout, respond
+from src.bot_app.core.components import respond
+from src.bot_app.features.logs.service import LogLevel, build_log_embed
+
+logger = logging.getLogger(__name__)
 
 
 class Logs(commands.Cog):
@@ -36,12 +41,20 @@ class Logs(commands.Cog):
 
         try:
             await canal.send(
-                view=TextLayout("✅ Este canal foi configurado para os logs do bot."),
+                embed=build_log_embed(
+                    "Canal de logs configurado",
+                    "Este canal receberá registros importantes do bot.",
+                    LogLevel.SUCCESS,
+                ),
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             await self.bot.guild_settings.set_log_channel(guild.id, canal.id)
-        except discord.HTTPException:
-            await respond(interaction, "Não consegui enviar uma mensagem de teste neste canal.")
+        except discord.Forbidden:
+            await respond(interaction, "O Discord negou o envio. Confira as permissões do canal.")
+            return
+        except Exception:
+            logger.exception("Falha ao configurar o canal de logs no servidor %s.", guild.id)
+            await respond(interaction, "Não consegui configurar os logs. Tente novamente mais tarde.")
             return
 
         await respond(interaction, f"Canal de logs configurado: {canal.mention}")
@@ -53,7 +66,12 @@ class Logs(commands.Cog):
     @app_commands.checks.has_permissions(manage_guild=True)
     @app_commands.guild_only()
     async def remove_logs(self, interaction: discord.Interaction) -> None:
-        await self.bot.guild_settings.set_log_channel(interaction.guild_id, None)
+        try:
+            await self.bot.guild_settings.set_log_channel(interaction.guild_id, None)
+        except Exception:
+            logger.exception("Falha ao remover canal de logs do servidor %s.", interaction.guild_id)
+            await respond(interaction, "Não consegui remover os logs. Tente novamente mais tarde.")
+            return
         await respond(interaction, "O envio de logs foi desativado neste servidor.")
 
     @app_commands.command(
@@ -63,22 +81,29 @@ class Logs(commands.Cog):
     @app_commands.checks.has_permissions(manage_guild=True)
     @app_commands.guild_only()
     async def test_logs(self, interaction: discord.Interaction) -> None:
-        channel_id = await self.bot.guild_settings.get_log_channel(interaction.guild_id)
-        channel = interaction.guild.get_channel(channel_id) if channel_id else None
-        if not isinstance(channel, discord.TextChannel):
-            await respond(
-                interaction,
-                "Nenhum canal de logs válido está configurado. Use /configurar_logs.",
-            )
-            return
-
         try:
+            channel_id = await self.bot.guild_settings.get_log_channel(interaction.guild_id)
+            channel = interaction.guild.get_channel(channel_id) if channel_id else None
+            if not isinstance(channel, discord.TextChannel):
+                await respond(
+                    interaction,
+                    "Nenhum canal de logs válido está configurado. Use /configurar_logs.",
+                )
+                return
             await channel.send(
-                view=TextLayout(f"✅ Teste de logs solicitado por {interaction.user} (`{interaction.user.id}`)."),
+                embed=build_log_embed(
+                    "Teste de logs",
+                    f"Solicitado por {interaction.user} (`{interaction.user.id}`).",
+                    LogLevel.INFO,
+                ),
                 allowed_mentions=discord.AllowedMentions.none(),
             )
-        except discord.HTTPException:
-            await respond(interaction, "Não consegui enviar a mensagem de teste. Confira as permissões do bot.")
+        except discord.Forbidden:
+            await respond(interaction, "O Discord negou o envio. Confira as permissões do canal.")
+            return
+        except Exception:
+            logger.exception("Falha ao testar logs no servidor %s.", interaction.guild_id)
+            await respond(interaction, "Não consegui enviar o teste de logs. Tente novamente mais tarde.")
             return
 
         await respond(interaction, "Mensagem de teste enviada ao canal de logs.")

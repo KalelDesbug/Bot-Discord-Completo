@@ -7,9 +7,7 @@ from src.bot_app.features.tickets.repository import TicketRepository
 from src.bot_app.features.welcome.repository import WelcomeRepository
 
 
-def test_setup_initializes_repositories_and_extensions(
-    tmp_path, monkeypatch
-) -> None:
+def test_setup_initializes_repositories_and_extensions(tmp_path, monkeypatch) -> None:
     async def setup_bot() -> None:
         bot = CommunityBot(Settings("test-token", tmp_path / "bot.sqlite3"))
         monkeypatch.setattr(bot.tree, "sync", AsyncMock())
@@ -19,6 +17,7 @@ def test_setup_initializes_repositories_and_extensions(
             assert isinstance(bot.welcome_settings, WelcomeRepository)
             assert bot.get_cog("Tickets") is not None
             assert bot.get_cog("Welcome") is not None
+            assert bot.get_cog("Logs") is not None
             assert bot.get_cog("Moderation") is not None
             assert bot.get_cog("Utility") is not None
             assert {
@@ -28,11 +27,14 @@ def test_setup_initializes_repositories_and_extensions(
                 "ban",
                 "bola8",
                 "configurar_boas_vindas",
+                "configurar_logs",
                 "configurar_tickets",
                 "kick",
                 "moeda",
                 "ping",
                 "publicar_painel_tickets",
+                "remover_logs",
+                "testar_logs",
                 "timeout",
                 "userinfo",
             }
