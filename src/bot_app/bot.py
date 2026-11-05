@@ -56,6 +56,7 @@ class CommunityBot(commands.Bot):
         for extension in (
             "src.bot_app.features.welcome.cog",
             "src.bot_app.features.tickets.cog",
+            "src.bot_app.features.logs.cog",
             "src.bot_app.features.moderation.cog",
             "src.bot_app.features.utility.cog",
         ):
