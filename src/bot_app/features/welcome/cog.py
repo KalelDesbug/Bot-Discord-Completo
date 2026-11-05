@@ -1,9 +1,12 @@
+import logging
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from src.bot_app.core.components import respond
 from src.bot_app.features.welcome.service import WelcomeService
+
+logger = logging.getLogger(__name__)
 
 
 class Welcome(commands.Cog):
@@ -22,24 +25,15 @@ class Welcome(commands.Cog):
         canal: discord.TextChannel,
         mensagem: app_commands.Range[str, 1, 500],
     ) -> None:
-        guild = interaction.guild
-        bot_member = guild.me if guild else None
-        if guild is None or bot_member is None:
-            await respond(interaction, "Não consegui validar o servidor.")
-            return
-
-        permissions = canal.permissions_for(bot_member)
-        if not permissions.view_channel or not permissions.send_messages:
-            await respond(
-                interaction,
-                "O bot precisa de Ver canal e Enviar mensagens no canal escolhido.",
-            )
-            return
-
-        await self.bot.welcome_settings.configure(guild.id, canal.id, mensagem)
-        await respond(
-            interaction,
-            f"Boas-vindas configuradas em {canal.mention}. Use `{{member}}` para mencionar a pessoa e `{{server}}` para o nome do servidor.",
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        await self.bot.welcome_settings.set_welcome(
+            interaction.guild_id, canal.id, mensagem
+        )
+        await interaction.followup.send(
+            f"Boas-vindas configuradas em {canal.mention}. Use `{{member}}` para mencionar "
+            "a pessoa e `{{server}}` para o nome do servidor.",
+            ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
     @commands.Cog.listener()
@@ -51,15 +45,28 @@ class Welcome(commands.Cog):
 
         channel = member.guild.get_channel(channel_id)
         if not isinstance(channel, discord.TextChannel):
+            logger.warning(
+                "Canal de boas-vindas %s indisponível no servidor %s.",
+                channel_id,
+                member.guild.id,
+            )
             return
 
         template = settings.get("welcome_message") or "Boas-vindas, {member}!"
         message = WelcomeService.render(template, member)
-        await channel.send(
-            view=TextLayout(message),
-            allowed_mentions=discord.AllowedMentions(users=True, roles=False, everyone=False),
-        )
-        await self.bot.log_event(member.guild.id, f"👋 Novo membro\nPessoa: {member} (`{member.id}`)")
+        try:
+            await channel.send(
+                message,
+                allowed_mentions=discord.AllowedMentions(
+                    users=[member], roles=False, everyone=False
+                ),
+            )
+        except discord.HTTPException:
+            logger.warning(
+                "Não foi possível enviar mensagem de boas-vindas para %s em %s.",
+                member.id,
+                member.guild.id,
+            )
 
 
 async def setup(bot: commands.Bot) -> None:

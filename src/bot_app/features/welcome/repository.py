@@ -2,6 +2,8 @@ from src.bot_app.core.database import Database
 
 
 class WelcomeRepository:
+    _columns = {"welcome_channel_id", "welcome_message"}
+
     def __init__(self, database: Database) -> None:
         self.database = database
 
@@ -14,17 +16,29 @@ class WelcomeRepository:
             row = await cursor.fetchone()
         return dict(row) if row else {}
 
-    async def configure(self, guild_id: int, channel_id: int, message: str) -> None:
-        connection = self.database.require_connection()
-        async with self.database.write_lock:
+    async def set(self, guild_id: int, key: str, value: int | str) -> None:
+        if key not in self._columns:
+            raise ValueError("Configuração de boas-vindas inválida.")
+
+        async with self.database.transaction() as connection:
             await connection.execute(
-                """
-                INSERT INTO guild_settings (guild_id, welcome_channel_id, welcome_message)
-                VALUES (?, ?, ?)
-                ON CONFLICT(guild_id) DO UPDATE SET
-                    welcome_channel_id = excluded.welcome_channel_id,
-                    welcome_message = excluded.welcome_message
+                f"""
+                INSERT INTO guild_settings (guild_id, {key}) VALUES (?, ?)
+                ON CONFLICT(guild_id) DO UPDATE SET {key} = excluded.{key}
                 """,
+                (guild_id, value),
+            )
+
+    async def set_welcome(
+        self, guild_id: int, channel_id: int, message: str
+    ) -> None:
+        async with self.database.transaction() as connection:
+            await connection.execute(
+                """INSERT INTO guild_settings
+                       (guild_id, welcome_channel_id, welcome_message)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(guild_id) DO UPDATE SET
+                       welcome_channel_id = excluded.welcome_channel_id,
+                       welcome_message = excluded.welcome_message""",
                 (guild_id, channel_id, message),
             )
-            await connection.commit()

@@ -22,7 +22,9 @@ class Utility(commands.Cog):
     ) -> None:
         user = membro or interaction.user
         await interaction.response.send_message(
-            f"Avatar de **{user}**: {user.display_avatar.url}", ephemeral=True
+            f"Avatar de **{user}**: {user.display_avatar.url}",
+            ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
     @app_commands.command(name="userinfo", description="Mostra informações de uma pessoa.")
@@ -45,6 +47,7 @@ class Utility(commands.Cog):
             f"**{user}**\nID: `{user.id}`\nEntrou: {joined}\n"
             f"Cargo mais alto: {user.top_role.mention}",
             ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
     @app_commands.command(name="moeda", description="Joga cara ou coroa.")
@@ -65,7 +68,8 @@ class Utility(commands.Cog):
             "As chances são boas.",
         )
         await interaction.response.send_message(
-            f"🎱 **Pergunta:** {pergunta}\n**Resposta:** {random.choice(respostas)}"
+            f"🎱 **Pergunta:** {pergunta}\n**Resposta:** {random.choice(respostas)}",
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
 

@@ -15,11 +15,9 @@ class GuildSettingsRepository:
         return row["log_channel_id"] if row else None
 
     async def set_log_channel(self, guild_id: int, channel_id: int | None) -> None:
-        connection = self.database.require_connection()
-        async with self.database.write_lock:
+        async with self.database.transaction() as connection:
             await connection.execute(
                 """INSERT INTO guild_settings (guild_id, log_channel_id) VALUES (?, ?)
                    ON CONFLICT(guild_id) DO UPDATE SET log_channel_id = excluded.log_channel_id""",
                 (guild_id, channel_id),
             )
-            await connection.commit()

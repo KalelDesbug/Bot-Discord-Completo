@@ -1,5 +1,28 @@
 import logging
+import subprocess
+import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+if __package__ in (None, ""):
+    project_root = Path(__file__).resolve().parents[2]
+    venv_python = project_root / ".venv" / "Scripts" / "python.exe"
+    if venv_python.is_file() and Path(sys.executable).resolve() != venv_python.resolve():
+        result = subprocess.run(
+            [str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]],
+            cwd=project_root,
+            check=False,
+        )
+        raise SystemExit(result.returncode)
+
+    project_root_string = str(project_root)
+    if project_root_string not in sys.path:
+        sys.path.insert(0, project_root_string)
+
+    from src.bot_app.__main__ import main
+
+    main()
+    raise SystemExit(0)
 
 import discord
 from discord import app_commands
@@ -8,6 +31,8 @@ from discord.ext import commands
 from src.bot_app.core.components import TextLayout
 from src.bot_app.core.database import Database
 from src.bot_app.core.settings import GuildSettingsRepository
+from src.bot_app.features.tickets.repository import TicketRepository
+from src.bot_app.features.welcome.repository import WelcomeRepository
 
 if TYPE_CHECKING:
     from src.bot_app.config import Settings
@@ -23,8 +48,8 @@ class CommunityBot(commands.Bot):
         self.settings = settings
         self.database = Database(settings.database_path)
         self.guild_settings = GuildSettingsRepository(self.database)
-        self.tickets = None
-        self.welcome_settings = None
+        self.tickets = TicketRepository(self.database)
+        self.welcome_settings = WelcomeRepository(self.database)
 
     async def setup_hook(self) -> None:
         await self.database.open()
@@ -33,7 +58,6 @@ class CommunityBot(commands.Bot):
             "src.bot_app.features.tickets.cog",
             "src.bot_app.features.moderation.cog",
             "src.bot_app.features.utility.cog",
-            "src.bot_app.features.logs.cog",
         ):
             await self.load_extension(extension)
 
@@ -83,9 +107,17 @@ class CommunityBot(commands.Bot):
             message = "Ocorreu um erro ao executar o comando."
         try:
             if interaction.response.is_done():
-                await interaction.followup.send(view=TextLayout(message), ephemeral=True)
+                await interaction.followup.send(
+                    view=TextLayout(message),
+                    ephemeral=True,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
             else:
-                await interaction.response.send_message(view=TextLayout(message), ephemeral=True)
+                await interaction.response.send_message(
+                    view=TextLayout(message),
+                    ephemeral=True,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
         except discord.HTTPException:
             logger.warning("Não foi possível responder à interação com erro.")
 

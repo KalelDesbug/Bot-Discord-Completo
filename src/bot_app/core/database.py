@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiosqlite
@@ -58,6 +60,17 @@ class Database:
         if self.connection is None:
             raise RuntimeError("Banco de dados ainda não foi inicializado.")
         return self.connection
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[aiosqlite.Connection, None]:
+        connection = self.require_connection()
+        async with self.write_lock:
+            try:
+                yield connection
+                await connection.commit()
+            except BaseException:
+                await connection.rollback()
+                raise
 
     async def close(self) -> None:
         if self.connection is not None:

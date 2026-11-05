@@ -1,54 +1,33 @@
-import discord
+from types import SimpleNamespace
+
+from src.bot_app.features.tickets.service import TicketService
+from src.bot_app.features.welcome.service import WelcomeService
 
 
-class ConfirmationLayout(discord.ui.LayoutView):
-    def __init__(self, owner_id: int, description: str, action) -> None:
-        super().__init__(timeout=120)
-        self.owner_id = owner_id
-        self.action = action
+def test_channel_name_replaces_invalid_characters() -> None:
+    name = TicketService.channel_name("João Silva!", 123)
+    assert name.startswith("ticket-")
+    assert all(character.isalnum() or character == "-" for character in name)
 
-        confirm = discord.ui.Button(label="Confirmar", style=discord.ButtonStyle.danger)
-        cancel = discord.ui.Button(label="Cancelar", style=discord.ButtonStyle.secondary)
-        confirm.callback = self.confirm
-        cancel.callback = self.cancel
 
-        container = discord.ui.Container()
-        container.add_item(discord.ui.TextDisplay(f"## Confirmar ação\n{description}"))
-        container.add_item(discord.ui.ActionRow(confirm, cancel))
-        self.add_item(container)
+def test_channel_name_uses_user_id_when_name_is_empty() -> None:
+    name = TicketService.channel_name("!!!", 456)
+    assert name == "ticket-456"
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self.owner_id:
-            return True
-        await interaction.response.send_message(
-            "Só quem iniciou esta ação pode confirmar.", ephemeral=True
-        )
-        return False
 
-    async def on_timeout(self) -> None:
-        for item in self.children:
-            item.disabled = True
+def test_can_close_owner_or_support_role() -> None:
+    owner_member = SimpleNamespace(id=15, roles=[SimpleNamespace(id=1)])
+    support_member = SimpleNamespace(id=99, roles=[SimpleNamespace(id=77)])
+    other_member = SimpleNamespace(id=88, roles=[SimpleNamespace(id=1)])
 
-    async def confirm(self, interaction: discord.Interaction) -> None:
-        try:
-            result = await self.action()
-        except discord.Forbidden:
-            await interaction.response.edit_message(view=None)
-            await interaction.followup.send(
-                "Ação recusada pelo Discord. Confira as permissões e a hierarquia de cargos.",
-                ephemeral=True,
-            )
-            return
-        except discord.HTTPException:
-            await interaction.response.edit_message(view=None)
-            await interaction.followup.send(
-                "O Discord não conseguiu concluir a ação. Tente novamente.",
-                ephemeral=True,
-            )
-            return
+    assert TicketService.can_close(owner_member, 15, None) is True
+    assert TicketService.can_close(support_member, 15, 77) is True
+    assert TicketService.can_close(other_member, 15, 77) is False
 
-        await interaction.response.edit_message(view=None)
-        await interaction.followup.send(result, ephemeral=True)
 
-    async def cancel(self, interaction: discord.Interaction) -> None:
-        await interaction.response.edit_message(view=None)
+def test_render_welcome_message() -> None:
+    member = SimpleNamespace(
+        mention="<@123>", guild=SimpleNamespace(name="Guild Test")
+    )
+    message = WelcomeService.render("{member} bem-vindo ao {server}!", member)
+    assert message == "<@123> bem-vindo ao Guild Test!"

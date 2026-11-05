@@ -1,5 +1,3 @@
-import aiosqlite
-
 from src.bot_app.core.database import Database
 
 
@@ -17,32 +15,23 @@ class TicketRepository:
         return dict(row) if row else {}
 
     async def set_settings(
-        self,
-        guild_id: int,
-        category_id: int,
-        support_role_id: int,
+        self, guild_id: int, category_id: int, support_role_id: int
     ) -> None:
-        connection = self.database.require_connection()
-        async with self.database.write_lock:
+        async with self.database.transaction() as connection:
             await connection.execute(
-                """
-                INSERT INTO guild_settings (guild_id, ticket_category_id, support_role_id)
-                VALUES (?, ?, ?)
-                ON CONFLICT(guild_id) DO UPDATE SET
-                    ticket_category_id = excluded.ticket_category_id,
-                    support_role_id = excluded.support_role_id
-                """,
+                """INSERT INTO guild_settings (guild_id, ticket_category_id, support_role_id)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(guild_id) DO UPDATE SET
+                       ticket_category_id = excluded.ticket_category_id,
+                       support_role_id = excluded.support_role_id""",
                 (guild_id, category_id, support_role_id),
             )
-            await connection.commit()
 
     async def get_open_for_owner(self, guild_id: int, owner_id: int) -> int | None:
         connection = self.database.require_connection()
         async with connection.execute(
-            """
-            SELECT channel_id FROM tickets
-            WHERE guild_id = ? AND owner_id = ? AND status = 'open'
-            """,
+            """SELECT channel_id FROM tickets
+               WHERE guild_id = ? AND owner_id = ? AND status = 'open'""",
             (guild_id, owner_id),
         ) as cursor:
             row = await cursor.fetchone()
@@ -51,44 +40,29 @@ class TicketRepository:
     async def get_by_channel(self, channel_id: int) -> dict | None:
         connection = self.database.require_connection()
         async with connection.execute(
-            "SELECT * FROM tickets WHERE channel_id = ?",
-            (channel_id,),
+            "SELECT * FROM tickets WHERE channel_id = ?", (channel_id,)
         ) as cursor:
             row = await cursor.fetchone()
         return dict(row) if row else None
 
     async def create(self, channel_id: int, guild_id: int, owner_id: int) -> None:
-        connection = self.database.require_connection()
-        async with self.database.write_lock:
-            try:
-                await connection.execute(
-                    "INSERT INTO tickets (channel_id, guild_id, owner_id) VALUES (?, ?, ?)",
-                    (channel_id, guild_id, owner_id),
-                )
-                await connection.commit()
-            except aiosqlite.Error:
-                await connection.rollback()
-                raise
+        async with self.database.transaction() as connection:
+            await connection.execute(
+                "INSERT INTO tickets (channel_id, guild_id, owner_id) VALUES (?, ?, ?)",
+                (channel_id, guild_id, owner_id),
+            )
 
-    async def close_ticket(self, channel_id: int) -> bool:
-        connection = self.database.require_connection()
-        async with self.database.write_lock:
-            async with connection.execute(
-                """
-                UPDATE tickets SET status = 'closed', closed_at = CURRENT_TIMESTAMP
-                WHERE channel_id = ? AND status = 'open'
-                """,
+    async def close_ticket(self, channel_id: int) -> None:
+        async with self.database.transaction() as connection:
+            await connection.execute(
+                """UPDATE tickets SET status = 'closed', closed_at = CURRENT_TIMESTAMP
+                   WHERE channel_id = ? AND status = 'open'""",
                 (channel_id,),
-            ) as cursor:
-                changed = cursor.rowcount > 0
-            await connection.commit()
-        return changed
+            )
 
     async def delete_by_channel(self, channel_id: int) -> None:
-        connection = self.database.require_connection()
-        async with self.database.write_lock:
+        async with self.database.transaction() as connection:
             await connection.execute(
                 "DELETE FROM tickets WHERE channel_id = ?",
                 (channel_id,),
             )
-            await connection.commit()

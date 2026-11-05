@@ -3,90 +3,121 @@ from collections.abc import Awaitable, Callable
 
 import discord
 
-from src.bot_app.core.components import TextLayout
-
 logger = logging.getLogger(__name__)
+
+
+class ConfirmationError(Exception):
+    pass
 
 
 class ConfirmationLayout(discord.ui.LayoutView):
     def __init__(
         self,
-        owner_id: int,
+        source_interaction: discord.Interaction,
         description: str,
-        action: Callable[[], Awaitable[str]],
+        action: Callable[[discord.Interaction], Awaitable[str]],
     ) -> None:
         super().__init__(timeout=120)
-        self.owner_id = owner_id
+        self.source_interaction = source_interaction
+        self.owner_id = source_interaction.user.id
         self.action = action
+        self._completed = False
 
-        self.confirm_button = discord.ui.Button(
-            label="Confirmar",
-            style=discord.ButtonStyle.danger,
-        )
-        self.cancel_button = discord.ui.Button(
-            label="Cancelar",
-            style=discord.ButtonStyle.secondary,
-        )
-
-        self.confirm_button.callback = self.confirm
-        self.cancel_button.callback = self.cancel
+        confirm = discord.ui.Button(label="Confirmar", style=discord.ButtonStyle.danger)
+        cancel = discord.ui.Button(label="Cancelar", style=discord.ButtonStyle.secondary)
+        self._buttons = (confirm, cancel)
+        confirm.callback = self.confirm
+        cancel.callback = self.cancel
 
         container = discord.ui.Container()
-        container.add_item(discord.ui.TextDisplay(f"## Confirmar ação\n{description[:3000]}"))
-        container.add_item(discord.ui.ActionRow(self.confirm_button, self.cancel_button))
+        container.add_item(discord.ui.TextDisplay(f"## Confirmar ação\n{description}"))
+        container.add_item(discord.ui.ActionRow(confirm, cancel))
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.owner_id:
-            return True
-
+            if not self._completed:
+                return True
+            message = "Esta confirmação já foi utilizada ou expirou."
+        else:
+            message = "Só quem iniciou esta ação pode confirmar."
         await interaction.response.send_message(
-            "Só quem iniciou esta ação pode confirmar.",
+            message,
             ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
         return False
 
-    async def confirm(self, interaction: discord.Interaction) -> None:
-        self.confirm_button.disabled = True
-        self.cancel_button.disabled = True
-
+    async def on_timeout(self) -> None:
+        self._completed = True
+        for item in self._buttons:
+            item.disabled = True
         try:
-            result = await self.action()
-        except discord.Forbidden:
-            await interaction.response.edit_message(view=self)
+            await self.source_interaction.edit_original_response(view=self)
+        except discord.HTTPException:
+            logger.exception("Não foi possível atualizar a confirmação expirada.")
+
+    async def _remove_components(self, interaction: discord.Interaction) -> None:
+        if interaction.message is None:
+            return
+        try:
+            await interaction.message.edit(view=None)
+        except discord.HTTPException:
+            logger.exception("Não foi possível remover os botões da confirmação.")
+
+    async def confirm(self, interaction: discord.Interaction) -> None:
+        if self._completed:
+            await interaction.response.send_message(
+                "Esta confirmação já foi utilizada ou expirou.",
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        self._completed = True
+        await interaction.response.defer()
+        try:
+            result = await self.action(interaction)
+        except ConfirmationError as error:
+            await self._remove_components(interaction)
             await interaction.followup.send(
-                view=TextLayout("Ação recusada pelo Discord. Confira permissões e hierarquia de cargos."),
+                str(error),
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        except discord.Forbidden:
+            await self._remove_components(interaction)
+            await interaction.followup.send(
+                "Ação recusada pelo Discord. Confira as permissões e a hierarquia de cargos.",
                 ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             return
         except discord.HTTPException:
-            logger.exception("Falha HTTP ao executar ação confirmada")
-            await interaction.response.edit_message(view=self)
+            await self._remove_components(interaction)
             await interaction.followup.send(
-                view=TextLayout("O Discord não conseguiu concluir a ação. Tente novamente."),
+                "O Discord não conseguiu concluir a ação. Tente novamente.",
                 ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             return
         except Exception:
-            logger.exception("Erro inesperado ao executar ação confirmada")
-            await interaction.response.edit_message(view=self)
+            logger.exception("Falha inesperada ao executar ação confirmada.")
+            await self._remove_components(interaction)
             await interaction.followup.send(
-                view=TextLayout("Ocorreu um erro ao executar a ação."),
+                "Ocorreu um erro ao executar a ação. Consulte os logs do bot.",
                 ephemeral=True,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             return
 
-        await interaction.response.edit_message(view=self)
+        await self._remove_components(interaction)
         await interaction.followup.send(
-            view=TextLayout(result),
+            result,
             ephemeral=True,
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
     async def cancel(self, interaction: discord.Interaction) -> None:
-        self.confirm_button.disabled = True
-        self.cancel_button.disabled = True
-        await interaction.response.edit_message(view=self)
+        self._completed = True
+        await interaction.response.edit_message(view=None)
