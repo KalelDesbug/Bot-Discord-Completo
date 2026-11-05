@@ -15,18 +15,15 @@ class Settings:
         if not token:
             raise RuntimeError("DISCORD_TOKEN não foi definido no arquivo .env ou ambiente.")
 
-        raw_guild_id = os.getenv("TEST_GUILD_ID", "").strip()
+        raw_guild = os.getenv("TEST_GUILD_ID", "").strip()
         try:
-            guild_id = int(raw_guild_id) if raw_guild_id else None
-        except ValueError as error:
-            raise RuntimeError("TEST_GUILD_ID precisa ser um ID numérico do Discord.") from error
+            guild_id = int(raw_guild) if raw_guild else None
+        except ValueError as exc:
+            raise RuntimeError("TEST_GUILD_ID precisa ser um ID numérico do Discord.") from exc
+        if guild_id is not None and guild_id <= 0:
+            raise RuntimeError("TEST_GUILD_ID precisa ser maior que zero.")
 
-        raw_database_path = os.getenv("DATABASE_PATH", "data/bot.sqlite3").strip()
-        if not raw_database_path:
+        raw_path = os.getenv("DATABASE_PATH", "data/bot.sqlite3").strip()
+        if not raw_path:
             raise RuntimeError("DATABASE_PATH não pode estar vazio.")
-
-        return cls(
-            discord_token=token,
-            database_path=Path(raw_database_path),
-            test_guild_id=guild_id,
-        )
+        return cls(token, Path(raw_path), guild_id)
