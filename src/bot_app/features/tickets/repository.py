@@ -68,3 +68,11 @@ class TicketRepository:
             (channel_id,),
         )
         await connection.commit()
+
+    async def delete_by_channel(self, channel_id: int) -> None:
+        connection = self.database.require_connection()
+        await connection.execute(
+            "DELETE FROM tickets WHERE channel_id = ?",
+            (channel_id,),
+        )
+        await connection.commit()

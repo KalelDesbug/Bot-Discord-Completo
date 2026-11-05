@@ -1,50 +1,70 @@
+import logging
+
 import discord
+from discord import app_commands
+from discord.ext import commands
+
+from src.bot_app.features.welcome.service import WelcomeService
+
+logger = logging.getLogger(__name__)
 
 
-class ConfirmationLayout(discord.ui.LayoutView):
-    def __init__(self, owner_id: int, description: str, action) -> None:
-        super().__init__(timeout=120)
-        self.owner_id = owner_id
-        self.action = action
+class Welcome(commands.Cog):
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
 
-        confirm = discord.ui.Button(label="Confirmar", style=discord.ButtonStyle.danger)
-        cancel = discord.ui.Button(label="Cancelar", style=discord.ButtonStyle.secondary)
-        confirm.callback = self.confirm
-        cancel.callback = self.cancel
-
-        container = discord.ui.Container()
-        container.add_item(discord.ui.TextDisplay(f"## Confirmar ação\n{description}"))
-        container.add_item(discord.ui.ActionRow(confirm, cancel))
-        self.add_item(container)
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self.owner_id:
-            return True
-        await interaction.response.send_message(
-            "Só quem iniciou esta ação pode confirmar.", ephemeral=True
+    @app_commands.command(
+        name="configurar_boas_vindas",
+        description="Define o canal e a mensagem de boas-vindas.",
+    )
+    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def configure_welcome(
+        self,
+        interaction: discord.Interaction,
+        canal: discord.TextChannel,
+        mensagem: app_commands.Range[str, 1, 500],
+    ) -> None:
+        await self.bot.welcome_settings.set(
+            interaction.guild_id, "welcome_channel_id", canal.id
         )
-        return False
+        await self.bot.welcome_settings.set(
+            interaction.guild_id, "welcome_message", mensagem
+        )
+        await interaction.response.send_message(
+            f"Boas-vindas configuradas em {canal.mention}. Use `{{member}}` para mencionar "
+            "a pessoa e `{{server}}` para o nome do servidor.",
+            ephemeral=True,
+        )
 
-    async def confirm(self, interaction: discord.Interaction) -> None:
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        settings = await self.bot.welcome_settings.get(member.guild.id)
+        channel_id = settings.get("welcome_channel_id")
+        if not channel_id:
+            return
+
+        channel = member.guild.get_channel(channel_id)
+        if not isinstance(channel, discord.TextChannel):
+            return
+
+        template = settings.get("welcome_message") or "Boas-vindas, {member}!"
+        message = WelcomeService.render(template, member)
         try:
-            result = await self.action()
-        except discord.Forbidden:
-            await interaction.response.edit_message(view=None)
-            await interaction.followup.send(
-                "Ação recusada pelo Discord. Confira as permissões e a hierarquia de cargos.",
-                ephemeral=True,
+            await channel.send(
+                message,
+                allowed_mentions=discord.AllowedMentions(
+                    users=True, roles=False, everyone=False
+                ),
             )
-            return
         except discord.HTTPException:
-            await interaction.response.edit_message(view=None)
-            await interaction.followup.send(
-                "O Discord não conseguiu concluir a ação. Tente novamente.",
-                ephemeral=True,
+            logger.warning(
+                "Não foi possível enviar mensagem de boas-vindas para %s em %s.",
+                member.id,
+                member.guild.id,
             )
             return
 
-        await interaction.response.edit_message(view=None)
-        await interaction.followup.send(result, ephemeral=True)
 
-    async def cancel(self, interaction: discord.Interaction) -> None:
-        await interaction.response.edit_message(view=None)
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(Welcome(bot))
