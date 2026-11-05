@@ -1,1 +1,3 @@
-"""Package for bot_app."""
+from src.bot_app.bot import CommunityBot
+
+__all__ = ["CommunityBot"]
