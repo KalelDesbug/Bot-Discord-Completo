@@ -1,70 +1,92 @@
 import logging
+from collections.abc import Awaitable, Callable
 
 import discord
-from discord import app_commands
-from discord.ext import commands
 
-from src.bot_app.features.welcome.service import WelcomeService
+from src.bot_app.core.components import TextLayout
 
 logger = logging.getLogger(__name__)
 
 
-class Welcome(commands.Cog):
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-
-    @app_commands.command(
-        name="configurar_boas_vindas",
-        description="Define o canal e a mensagem de boas-vindas.",
-    )
-    @app_commands.checks.has_permissions(manage_guild=True)
-    @app_commands.guild_only()
-    async def configure_welcome(
+class ConfirmationLayout(discord.ui.LayoutView):
+    def __init__(
         self,
-        interaction: discord.Interaction,
-        canal: discord.TextChannel,
-        mensagem: app_commands.Range[str, 1, 500],
+        owner_id: int,
+        description: str,
+        action: Callable[[], Awaitable[str]],
     ) -> None:
-        await self.bot.welcome_settings.set(
-            interaction.guild_id, "welcome_channel_id", canal.id
+        super().__init__(timeout=120)
+        self.owner_id = owner_id
+        self.action = action
+
+        self.confirm_button = discord.ui.Button(
+            label="Confirmar",
+            style=discord.ButtonStyle.danger,
         )
-        await self.bot.welcome_settings.set(
-            interaction.guild_id, "welcome_message", mensagem
+        self.cancel_button = discord.ui.Button(
+            label="Cancelar",
+            style=discord.ButtonStyle.secondary,
         )
+
+        self.confirm_button.callback = self.confirm
+        self.cancel_button.callback = self.cancel
+
+        container = discord.ui.Container()
+        container.add_item(discord.ui.TextDisplay(f"## Confirmar ação\n{description[:3000]}"))
+        container.add_item(discord.ui.ActionRow(self.confirm_button, self.cancel_button))
+        self.add_item(container)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.owner_id:
+            return True
+
         await interaction.response.send_message(
-            f"Boas-vindas configuradas em {canal.mention}. Use `{{member}}` para mencionar "
-            "a pessoa e `{{server}}` para o nome do servidor.",
+            "Só quem iniciou esta ação pode confirmar.",
             ephemeral=True,
         )
+        return False
 
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member) -> None:
-        settings = await self.bot.welcome_settings.get(member.guild.id)
-        channel_id = settings.get("welcome_channel_id")
-        if not channel_id:
-            return
+    async def confirm(self, interaction: discord.Interaction) -> None:
+        self.confirm_button.disabled = True
+        self.cancel_button.disabled = True
 
-        channel = member.guild.get_channel(channel_id)
-        if not isinstance(channel, discord.TextChannel):
-            return
-
-        template = settings.get("welcome_message") or "Boas-vindas, {member}!"
-        message = WelcomeService.render(template, member)
         try:
-            await channel.send(
-                message,
-                allowed_mentions=discord.AllowedMentions(
-                    users=True, roles=False, everyone=False
-                ),
+            result = await self.action()
+        except discord.Forbidden:
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send(
+                view=TextLayout("Ação recusada pelo Discord. Confira permissões e hierarquia de cargos."),
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
             )
+            return
         except discord.HTTPException:
-            logger.warning(
-                "Não foi possível enviar mensagem de boas-vindas para %s em %s.",
-                member.id,
-                member.guild.id,
+            logger.exception("Falha HTTP ao executar ação confirmada")
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send(
+                view=TextLayout("O Discord não conseguiu concluir a ação. Tente novamente."),
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        except Exception:
+            logger.exception("Erro inesperado ao executar ação confirmada")
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send(
+                view=TextLayout("Ocorreu um erro ao executar a ação."),
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
             )
             return
 
+        await interaction.response.edit_message(view=self)
+        await interaction.followup.send(
+            view=TextLayout(result),
+            ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
 
-async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(Welcome(bot))
+    async def cancel(self, interaction: discord.Interaction) -> None:
+        self.confirm_button.disabled = True
+        self.cancel_button.disabled = True
+        await interaction.response.edit_message(view=self)

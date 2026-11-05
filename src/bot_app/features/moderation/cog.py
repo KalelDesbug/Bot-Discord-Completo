@@ -4,6 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from src.bot_app.core.components import respond
 from src.bot_app.features.moderation.confirmation import ConfirmationLayout
 
 
@@ -13,7 +14,8 @@ class Moderation(commands.Cog):
 
     @staticmethod
     def validate_target(
-        interaction: discord.Interaction, target: discord.Member
+        interaction: discord.Interaction,
+        target: discord.Member,
     ) -> str | None:
         guild = interaction.guild
         actor = interaction.user
@@ -33,11 +35,15 @@ class Moderation(commands.Cog):
         return reason.strip()[:400] or "Sem motivo informado"
 
     async def confirm_action(
-        self, interaction: discord.Interaction, description: str, action
+        self,
+        interaction: discord.Interaction,
+        description: str,
+        action,
     ) -> None:
         await interaction.response.send_message(
             view=ConfirmationLayout(interaction.user.id, description, action),
             ephemeral=True,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
     @app_commands.command(name="ban", description="Bane uma pessoa do servidor.")
@@ -51,15 +57,26 @@ class Moderation(commands.Cog):
     ) -> None:
         error = self.validate_target(interaction, membro)
         if error:
-            await interaction.response.send_message(error, ephemeral=True)
+            await respond(interaction, error)
             return
+
         reason = self.clean_reason(motivo)
+        guild = interaction.guild
+        actor = interaction.user
 
         async def action() -> str:
-            await interaction.guild.ban(membro, reason=reason, delete_message_seconds=0)
+            await guild.ban(membro, reason=reason, delete_message_seconds=0)
+            await self.bot.log_event(
+                guild.id,
+                f"🔨 Banimento\nModerador: {actor} (`{actor.id}`)\nAlvo: {membro} (`{membro.id}`)\nMotivo: {reason}",
+            )
             return f"{membro} foi banido. Motivo: {reason}"
 
-        await self.confirm_action(interaction, f"Banir **{membro}**?\nMotivo: {reason}", action)
+        await self.confirm_action(
+            interaction,
+            f"Banir **{membro}**?\nMotivo: {reason}",
+            action,
+        )
 
     @app_commands.command(name="kick", description="Expulsa uma pessoa do servidor.")
     @app_commands.checks.has_permissions(kick_members=True)
@@ -72,15 +89,26 @@ class Moderation(commands.Cog):
     ) -> None:
         error = self.validate_target(interaction, membro)
         if error:
-            await interaction.response.send_message(error, ephemeral=True)
+            await respond(interaction, error)
             return
+
         reason = self.clean_reason(motivo)
+        guild = interaction.guild
+        actor = interaction.user
 
         async def action() -> str:
             await membro.kick(reason=reason)
+            await self.bot.log_event(
+                guild.id,
+                f"👢 Expulsão\nModerador: {actor} (`{actor.id}`)\nAlvo: {membro} (`{membro.id}`)\nMotivo: {reason}",
+            )
             return f"{membro} foi expulso. Motivo: {reason}"
 
-        await self.confirm_action(interaction, f"Expulsar **{membro}**?\nMotivo: {reason}", action)
+        await self.confirm_action(
+            interaction,
+            f"Expulsar **{membro}**?\nMotivo: {reason}",
+            action,
+        )
 
     @app_commands.command(name="timeout", description="Aplica timeout em uma pessoa.")
     @app_commands.checks.has_permissions(moderate_members=True)
@@ -94,12 +122,19 @@ class Moderation(commands.Cog):
     ) -> None:
         error = self.validate_target(interaction, membro)
         if error:
-            await interaction.response.send_message(error, ephemeral=True)
+            await respond(interaction, error)
             return
+
         reason = self.clean_reason(motivo)
+        guild = interaction.guild
+        actor = interaction.user
 
         async def action() -> str:
             await membro.timeout(timedelta(minutes=minutos), reason=reason)
+            await self.bot.log_event(
+                guild.id,
+                f"⏳ Timeout\nModerador: {actor} (`{actor.id}`)\nAlvo: {membro} (`{membro.id}`)\nDuração: {minutos} minuto(s)\nMotivo: {reason}",
+            )
             return f"{membro} recebeu timeout por {minutos} minuto(s). Motivo: {reason}"
 
         await self.confirm_action(

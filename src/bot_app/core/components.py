@@ -15,7 +15,11 @@ async def respond(
     *,
     ephemeral: bool = True,
 ) -> None:
-    await interaction.response.send_message(view=TextLayout(text), ephemeral=ephemeral)
+    await interaction.response.send_message(
+        view=TextLayout(text),
+        ephemeral=ephemeral,
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
 
 
 async def followup(
@@ -24,4 +28,8 @@ async def followup(
     *,
     ephemeral: bool = True,
 ) -> None:
-    await interaction.followup.send(view=TextLayout(text), ephemeral=ephemeral)
+    await interaction.followup.send(
+        view=TextLayout(text),
+        ephemeral=ephemeral,
+        allowed_mentions=discord.AllowedMentions.none(),
+    )
