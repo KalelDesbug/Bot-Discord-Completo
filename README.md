@@ -1,36 +1,53 @@
-# Discord Community Bot/FEITO COM IA
+<div align="center">
 
-Bot de comunidade em Python com tickets, boas-vindas configuráveis, moderação com confirmação e comandos úteis/divertidos.
+# 🤖 Bot Discord Completo
 
-## Requisitos
+**Bot de comunidade com tickets, boas-vindas, moderação e comandos úteis.**
 
-- Python 3.10+
-- Aplicação criada no [Discord Developer Portal](https://discord.com/developers/applications)
-- `Server Members Intent` habilitado no portal para o evento de boas-vindas
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![discord.py](https://img.shields.io/badge/discord.py-2.6%2B-5865F2?style=flat-square&logo=discord&logoColor=white)
+![SQLite](https://img.shields.io/badge/Banco-SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
+![Licença](https://img.shields.io/badge/Licen%C3%A7a-MIT-green?style=flat-square)
 
-Copie `.env.example` para `.env` e preencha `DISCORD_TOKEN`.
+</div>
 
-## Configuração fácil do bot
+---
 
-Edite `config-bot.json` na pasta principal do projeto. As opções foram pensadas para poderem ser alteradas sem mexer no código:
+## ✨ Recursos
 
-- `restart.enabled`: `true` para reiniciar automaticamente ou `false` para desativar o reinício programado.
-- `restart.interval_hours`: intervalo em horas, de 1 a 720. Exemplo: `24` significa uma vez por dia.
-- `restart.retry_seconds`: espera antes de tentar iniciar o bot novamente após uma desconexão ou encerramento inesperado.
-- `logs.discord_enabled`: `true` envia logs ao canal configurado no Discord; `false` desativa apenas o envio ao Discord.
-- `logs.console_level`: nível de detalhes no console: `DEBUG`, `INFO`, `WARNING`, `ERROR` ou `CRITICAL`.
+- 🎫 Tickets privados com painel e botão para fechar
+- 👋 Boas-vindas configuráveis por servidor
+- 🛡️ Moderação com confirmação: ban, kick e timeout
+- 📋 Logs configuráveis e coloridos
+- 🎲 Comandos: `/ping`, `/avatar`, `/userinfo`, `/moeda` e `/bola8`
+- 🔄 Reinício automático configurável
 
-Exemplo: para desligar o reinício programado, mude `"enabled": true` para `"enabled": false`. Para reiniciar a cada 12 horas, use `"interval_hours": 12`. Salve o arquivo e reinicie o processo do bot para aplicar as alterações.
+## 🚀 Começar
 
-O arquivo é JSON: mantenha aspas duplas e vírgulas entre os campos. Se ele estiver ausente, o bot usa os padrões (reinício ligado a cada 24 horas e logs habilitados). Valores inválidos mostram uma mensagem de configuração clara em vez de iniciar com comportamento inesperado.
+Requer Python 3.10+ e uma aplicação criada no [Discord Developer Portal](https://discord.com/developers/applications). Ative o **Server Members Intent** para as boas-vindas.
 
-## Configuração no servidor
+```bash
+pip install -r requirements.txt
+```
 
-Convide o bot com os escopos `bot` e `applications.commands`. Conceda somente as permissões necessárias: ver canais, enviar mensagens, gerenciar canais (tickets), banir membros, expulsar membros e moderar membros.
+Crie `.env` a partir de `.env.example`, preencha `DISCORD_TOKEN` e inicie:
 
-1. `/configurar_boas_vindas` define o canal e a mensagem. Placeholders: `{member}` e `{server}`.
-2. `/configurar_tickets` escolhe a categoria e o cargo de suporte.
-3. `/publicar_painel_tickets` publica o botão de abertura de tickets no canal atual.
-4. `/configurar_logs` configura o canal de logs.
+```bash
+python -m src.bot_app
+```
 
-Comandos de moderação: `/ban`, `/kick` e `/timeout`. Todos exigem confirmação e checam permissões e hierarquia. Outros comandos: `/ping`, `/avatar`, `/userinfo`, `/moeda` e `/bola8`.
+## ⚙️ Configuração
+
+Edite `config-bot.json` para ajustar opções sem alterar o código:
+
+- `restart.enabled`: `true` ou `false`
+- `restart.interval_hours`: intervalo entre reinícios, de 1 a 720 horas
+- `restart.retry_seconds`: espera antes de tentar reconectar
+- `logs.discord_enabled`: ativa ou desativa logs no Discord
+- `logs.console_level`: nível de log, como `INFO` ou `DEBUG`
+
+No servidor, configure as boas-vindas com `/configurar_boas_vindas`, os tickets com `/configurar_tickets` e `/publicar_painel_tickets`, e os logs com `/configurar_logs`. Convide o bot com os escopos `bot` e `applications.commands`, concedendo apenas as permissões necessárias.
+
+## 📄 Licença
+
+Distribuído sob a licença [MIT](LICENSE).
