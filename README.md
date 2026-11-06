@@ -108,3 +108,16 @@ Contribuições também são bem-vindas.
 ## Licença
 
 Este projeto está distribuído sob a licença [MIT](LICENSE). Consulte o arquivo para conhecer os termos de uso, modificação e distribuição.
+
+
+## ☕ Apoie o Projeto
+
+Se este bot te ajudou de alguma forma e gostarias de apoiar o desenvolvimento de novos comandos, melhorias e futuros projetos, podes fazer uma contribuição através do LivePix:
+
+<div align="center">
+
+[![Apoiar no LivePix](https://img.shields.io/badge/Apoiar%20no-LivePix-33CC66?style=for-the-badge&logo=pix&logoColor=white)](https://livepix.gg/kakautube)
+
+*Toda a ajuda é super bem-vinda e ajuda a manter os projeto ativo!*
+
+</div>
