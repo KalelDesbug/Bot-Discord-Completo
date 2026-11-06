@@ -1,6 +1,6 @@
 # Discord Community Bot/FEITO COM IA
 
-Bot de comunidade em Python com tickets, boas-vindas configuráveis, moderação com confirmação e comandos úteis/divertidos.
+Bot de comunidade em Python com tickets, sorteios, boas-vindas configuráveis, moderação com confirmação e comandos úteis/divertidos.
 
 <div align="center">
 
@@ -60,10 +60,19 @@ Conceda somente as permissões necessárias: visualizar canais, enviar mensagens
 
 ### Comandos de configuração
 
-1. `/configurar_boas_vindas` — define o canal e a mensagem de boas-vindas. Placeholders disponíveis: `{member}` e `{server}`.
-2. `/configurar_tickets` — configura a categoria e o cargo de suporte.
-3. `/publicar_painel_tickets` — publica o botão de abertura de tickets no canal atual.
-4. `/configurar_logs` — configura o sistema de registros do bot.
+1. `/ticket-config` — abre o painel para configurar a equipe, categoria, logs e criar/editar painéis de tickets.
+2. `/enviar-painel` — publica ou atualiza um painel de tickets criado pelo administrador.
+3. `/welcome-setup` — abre o painel completo de configuração de boas-vindas.
+
+### Comandos de sorteios
+
+| Comando | Descrição |
+|---|---|
+| `/giveaway setup` | Abre o painel interativo para criar e configurar um sorteio. |
+| `/giveaway entrada-extra` | Concede entradas extras a um participante. |
+| `/giveaway encerrar` | Encerra um sorteio ativo pelo ID. |
+| `/giveaway reroll` | Sorteia novos ganhadores para um sorteio encerrado. |
+| `/giveaway ativos` | Lista os sorteios ativos do servidor. |
 
 ### Comandos de moderação
 
@@ -71,7 +80,7 @@ Conceda somente as permissões necessárias: visualizar canais, enviar mensagens
 |---|---|
 | `/ban` | Bane um membro do servidor. |
 | `/kick` | Expulsa um membro do servidor. |
-| `/timeout` | Aplica um tempo limite a um membro. |
+| `/mute` | Aplica timeout temporário a um membro. |
 
 Todos exigem confirmação e verificam permissões e hierarquia antes da execução.
 
@@ -79,11 +88,7 @@ Todos exigem confirmação e verificam permissões e hierarquia antes da execuç
 
 | Comando | Descrição |
 |---|---|
-| `/ping` | Exibe a latência do bot. |
-| `/avatar` | Exibe o avatar de um usuário. |
 | `/userinfo` | Mostra informações de um usuário. |
-| `/moeda` | Simula um lançamento de moeda. |
-| `/bola8` | Responde perguntas aleatórias. |
 
 ## Configurações adicionais
 
@@ -108,7 +113,6 @@ Contribuições também são bem-vindas.
 ## Licença
 
 Este projeto está distribuído sob a licença [MIT](LICENSE). Consulte o arquivo para conhecer os termos de uso, modificação e distribuição.
-
 
 ## ☕ Apoie o Projeto
 
