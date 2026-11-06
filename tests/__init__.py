@@ -1,1 +1,1 @@
-"""Bot test suite."""
+"""Project package."""

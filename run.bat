@@ -1,11 +1,43 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
+title Gerenciador do Bot
+
+:: Ajusta o diretorio de trabalho para a pasta do script
 cd /d "%~dp0"
 
-if not exist ".venv\Scripts\python.exe" (
-    echo Ambiente Python nao encontrado. Crie-o ou atualize o caminho neste script.
+:: 1. Verifica se o Python esta instalado
+where python >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [ERRO] Python nao foi encontrado no PATH do sistema.
+    echo Instale o Python e marque a opcao "Add Python to PATH".
+    pause
     exit /b 1
 )
 
-".venv\Scripts\python.exe" -m src.bot_app
-exit /b %errorlevel%
+:: 2. Instala/Atualiza as dependencias se o requirements.txt existir
+if exist "requirements.txt" (
+    echo [INFO] Verificando e instalando dependencias do requirements.txt...
+    python -m pip install --upgrade pip >nul 2>nul
+    python -m pip install -r requirements.txt
+    if %errorlevel% neq 0 (
+        echo [ERRO] Falha ao instalar dependencias.
+        pause
+        exit /b 1
+    )
+) else (
+    echo [AVISO] Arquivo requirements.txt nao encontrado. Pulando instalacao.
+)
+
+:: 3. Executa o bot
+if exist "bot.py" (
+    echo.
+    echo [OK] Iniciando bot.py...
+    echo --------------------------------------------------
+    python bot.py
+) else (
+    echo [ERRO] O arquivo bot.py nao foi encontrado nesta pasta.
+    pause
+    exit /b 1
+)
+
+pause
